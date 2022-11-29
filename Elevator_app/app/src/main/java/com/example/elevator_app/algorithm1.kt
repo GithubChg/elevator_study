@@ -328,7 +328,7 @@ fun CCoperation(elevator: Elevator){
                 elevator.next_floor++
                 elevator.arrive_time+= MOVETIME
                 if(is_open)
-                    elevator.arrive_time  += OPEN_TIME + CLOSE_TIME
+                    elevator.arrive_time+= OPEN_TIME + CLOSE_TIME
             }
             //가까운 승객이 현재 엘리베이터가 있는 곳보다 낮은 층인 경우
             else if((near_floor!=-1)&&(near_floor<elevator.next_floor)){
