@@ -300,12 +300,9 @@ fun CCoperation(elevator: Elevator){
             //가장 가까운 층에서의 요청을 찾는다
             var call_floor: MutableList<Int> = mutableListOf();
 
-
             for(i in FLOOR_FLOOR..CEILING_FLOOR)
                 if(floor.user_list[i].size!=0)
                     call_floor.add(i)
-
-
 
             var x=elevator.next_floor
             var y=elevator.next_floor
@@ -331,7 +328,7 @@ fun CCoperation(elevator: Elevator){
                 elevator.next_floor++
                 elevator.arrive_time+= MOVETIME
                 if(is_open)
-                    elevator.arrive_time+= OPEN_TIME + CLOSE_TIME
+                    elevator.arrive_time  += OPEN_TIME + CLOSE_TIME
             }
             //가까운 승객이 현재 엘리베이터가 있는 곳보다 낮은 층인 경우
             else if((near_floor!=-1)&&(near_floor<elevator.next_floor)){
@@ -346,6 +343,7 @@ fun CCoperation(elevator: Elevator){
                 i=0
                 var num=elevator.up_user_list.size+elevator.down_user_list.size
                 //정원초과 되기 전까지 next_floor에서 승객을 제거하여 down_user_list로 삽입한다.
+                // 내려가는 것이 우선
                 while((i<next_floor_list.size)&&(num< MAXIMUM_NUMBER)){
                     if(next_floor_list[i].quit_floor<next_floor_list[i].ride_floor)
                     {
@@ -362,12 +360,13 @@ fun CCoperation(elevator: Elevator){
                     i++
                 }
 
-
+                // 엘리베이터 내부에 내려가는 승객의 수가 있는지 확인
                 if(elevator.down_user_list.size!=0){
                     elevator.direction="DOWN"
                     elevator.next_floor--
                     elevator.arrive_time+= OPEN_TIME + MOVETIME + CLOSE_TIME
                 }
+                // 내려가는 승객의 수가 없으면 해당 층에서 올라가려는 승객을 태움
                 else if(elevator.down_user_list.size==0){
                     i=0
                     var num=elevator.up_user_list.size+elevator.down_user_list.size
