@@ -11,6 +11,7 @@ class User(var create_time: Int, var ride_floor: Int, var quit_floor: Int) {
     var target_elevator: Int = -1 //어느 엘리베이터에 탑승하는지
     var depart_time: Int = -1 //승객 탑승시간 (예상)
     var arrive_time: Int = -1 // 승객 도착층 도착시간 (예상)
+    var isTransfer: Boolean = false // Zoning 알고리즘에서 승객이 환승을 했는지 여부를 알려주는 변수
 }
 
 //층 클래스
@@ -42,7 +43,7 @@ class Elevator() {
 
 // 상수
 //ALGORITHM 변수 후보: COLLECTIVE_CONTROL, algorithm2,  ZONING
-val ALGORITHM = "COLLECTIVE_CONTROL" //사용하는 알고리즘
+val ALGORITHM = "ZONING" //사용하는 알고리즘
 val IS_SIMULATION = true //시뮬레이션 중인지, 실제 사용자가 사용하는 경우인지 구분
 val SIMULATION_DURATION = 604800 //시뮬레이션 지속 시간 604800초는 1주일 debug code
 val MAXIMUM_NUMBER = 24 // 엘리베이터 정원
@@ -118,6 +119,12 @@ fun create_user(create_time: Int) {
 }
 
 fun main() {
+    //Zoning 알고리즘일 때, 초기 엘리베이터의 시작 위치를 세팅
+    if (ALGORITHM == "ZONING") {
+        elevator1.next_floor = 0
+        elevator2.next_floor = CEILING_FLOOR / 2 as Int
+    }
+
     //실제 사용자의 입력을 기다리는 thread 생성
     val myThread = real_user_create()
     myThread.start()
@@ -184,6 +191,7 @@ fun main() {
         }
 
         //알고리즘의 종류에 따른 엘리베이터 운영 (멈추기, 내리기, 태우기)
+        //각 알고리즘 수행 결과 엘리베이터 한 층 씩 이동
         if (ALGORITHM == "COLLECTIVE_CONTROL") {
             //엘리베이터 1 동작
             CCoperation(elevator1)
