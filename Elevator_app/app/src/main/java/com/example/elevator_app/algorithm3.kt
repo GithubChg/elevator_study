@@ -14,11 +14,12 @@ import now
 import sum_distance
 import sum_passenger
 import sum_waiting
+import kotlin.system.exitProcess
 
 
 // Zoning algorithm
 // section 값이 1일 때 -> 1층 부터 중간 층까지 이동하는 엘리베이터
-// section 값이 2일 때 -> 중간 층+1층 부터 최상층까지 이동하는 엘리베이터
+// section 값이 2일 때 -> 중간 층 부터 최상층까지 이동하는 엘리베이터
 fun zoning(elevator: Elevator, section: Int) {
     var floorFloor: Int = 0
     var ceilingFloor: Int = 0
@@ -38,13 +39,11 @@ fun zoning(elevator: Elevator, section: Int) {
         //도착한 승객들을 모두 내리고 성능평가지표를 수정한다.
         var i = 0
         while (i < elevator.up_user_list.size) {
-            //승객이 내리고자 하는 층에 도착한 경우
-            if (elevator.up_user_list[i].quit_floor == elevator.next_floor) {
+            if (elevator.up_user_list[i].quit_floor == elevator.next_floor) {   //승객이 내리고자 하는 층에 도착한 경우
                 sum_passenger++
-                // 환승을 했던 승객이라면 총 대기 시간에 10을 추가로 더해줌
                 sum_waiting += if (elevator.up_user_list[i].isTransfer) {
-                    (now - elevator.up_user_list[i].create_time) + 10
-                } else {
+                    (now - elevator.up_user_list[i].create_time) + 10   // 환승을 했던 승객이라면 총 대기 시간에 10을 추가로 더해줌
+                } else {    // 환승을 안 한 승객
                     now - elevator.up_user_list[i].create_time
                 }
                 if (longest_waiting < now - elevator.up_user_list[i].create_time)
@@ -53,29 +52,28 @@ fun zoning(elevator: Elevator, section: Int) {
                 i--
                 is_open = true
             }
-            // 천장 층 도착 +
-            // 올라가려는 승객이 25층 초과인 경우, 승객의 ride_floor를 25로 수정해서 다른 엘리베이터로 환승시킴
-            if (elevator.next_floor == ceilingFloor) {
-                if (elevator.up_user_list[i].quit_floor >= ceilingFloor) {
-                    elevator.up_user_list[i].ride_floor = ceilingFloor;
-
-                    var temp_create_time = elevator.up_user_list[i].create_time
-                    var temp_ride_floor = elevator.up_user_list[i].ride_floor
-                    var temp_quit_floor = elevator.up_user_list[i].quit_floor
-                    var temp_userid = elevator.up_user_list[i].userid
-                    elevator.up_user_list.removeAt(i)
-                    var temp_user = User(temp_create_time, temp_ride_floor, temp_quit_floor)
-                    temp_user.userid = temp_userid
-                    temp_user.isTransfer = true
-                    floor.user_list[temp_user.ride_floor].add(temp_user)
-                    i--
-                    is_open = true
-                }
-                elevator.direction = "DOWN" //천장층 도착 시, 강제로 엘리베이터의 방향 바꿈
-            }
             i++
             if (i >= elevator.up_user_list.size)
                 break;
+        }
+        // 천장 층 도착 -> 여기에 남아있는 승객들은 환승해야 하는 승객들임
+        // -> 승객의 ride_floor를 25로 수정해서 옆 엘리베이터로 환승시킴
+        if (section == 1 && elevator.next_floor == ceilingFloor) {
+            for (i: Int in 0 until elevator.up_user_list.size) {
+                elevator.up_user_list[0].ride_floor = ceilingFloor;
+
+                var temp_create_time = elevator.up_user_list[0].create_time
+                var temp_ride_floor = elevator.up_user_list[0].ride_floor
+                var temp_quit_floor = elevator.up_user_list[0].quit_floor
+                var temp_userid = elevator.up_user_list[0].userid
+                elevator.up_user_list.removeAt(0)
+                var temp_user = User(temp_create_time, temp_ride_floor, temp_quit_floor)
+                temp_user.userid = temp_userid
+                temp_user.isTransfer = true
+                floor.user_list[temp_user.ride_floor].add(temp_user)
+
+                is_open = true
+            }
         }
 
         i = 0
@@ -94,30 +92,28 @@ fun zoning(elevator: Elevator, section: Int) {
                 i--
                 is_open = true
             }
-            // 바닥층 도착 +
-            // 내려가려는 승객이 25층 미만인 경우, ride_floor를 25로 수정해서 다른 엘리베이터로 환승시킴
-            if (elevator.next_floor == floorFloor) {
-                if (elevator.down_user_list[i].quit_floor <= floorFloor) {
-                    elevator.down_user_list[i].ride_floor = floorFloor;
-
-                    var temp_create_time = elevator.down_user_list[i].create_time
-                    var temp_ride_floor = elevator.down_user_list[i].ride_floor
-                    var temp_quit_floor = elevator.down_user_list[i].quit_floor
-                    var temp_userid = elevator.down_user_list[i].userid
-                    elevator.down_user_list.removeAt(i)
-                    var temp_user = User(temp_create_time, temp_ride_floor, temp_quit_floor)
-                    temp_user.userid = temp_userid
-                    temp_user.isTransfer = true
-                    floor.user_list[temp_user.ride_floor].add(temp_user)
-                    i--
-                    is_open = true
-                }
-                elevator.direction = "UP"
-            }
-
             i++
             if (i >= elevator.down_user_list.size)
                 break;
+        }
+        // 바닥층 도착 +
+        // 내려가려는 승객이 25층 미만인 경우, ride_floor를 25로 수정해서 다른 엘리베이터로 환승시킴
+        if (section == 2 && elevator.next_floor == floorFloor) {
+            for (i: Int in 0 until elevator.down_user_list.size) {
+                elevator.down_user_list[0].ride_floor = floorFloor;
+
+                var temp_create_time = elevator.down_user_list[0].create_time
+                var temp_ride_floor = elevator.down_user_list[0].ride_floor
+                var temp_quit_floor = elevator.down_user_list[0].quit_floor
+                var temp_userid = elevator.down_user_list[0].userid
+                elevator.down_user_list.removeAt(0)
+                var temp_user = User(temp_create_time, temp_ride_floor, temp_quit_floor)
+                temp_user.userid = temp_userid
+                temp_user.isTransfer = true
+                floor.user_list[temp_user.ride_floor].add(temp_user)
+
+                is_open = true
+            }
         }
 
         //엘리베이터가 위로 가는 중인 경우
@@ -135,7 +131,7 @@ fun zoning(elevator: Elevator, section: Int) {
             }
 
             //next_floor에서 위로 가는 요청이 있는 경우
-            if (flag == true) {
+            if (flag) {
                 i = 0
                 var num = elevator.up_user_list.size + elevator.down_user_list.size
                 //정원초과 되기 전까지 next_floor에서 승객을 제거하여 up_user_list로 삽입한다.
@@ -214,8 +210,8 @@ fun zoning(elevator: Elevator, section: Int) {
                     // next_floor에서 아래로 가는 요청이 없는 경우, 그 다음 층에 요청이 있는지 확인
                     else {
                         flag = false
-                        //0층에서 next_floor-1층 사이에 요청이 있음
-                        for (i: Int in floorFloor..elevator.next_floor - 1)
+                        //1층에서 next_floor-1층 사이에 요청이 있음
+                        for (i: Int in floorFloor until elevator.next_floor)
                             for (j in floor.user_list[i])
                                 flag = true
                         //엘리베이터에 next_floor-1층 이하로 가는 승객이 있는 경우
@@ -223,7 +219,7 @@ fun zoning(elevator: Elevator, section: Int) {
                             if (i.quit_floor < elevator.next_floor)
                                 flag = true
 
-                        //0층에서 next_floor-1층 사이에 요청이 있거나,
+                        //1층에서 next_floor-1층 사이에 요청이 있거나,
                         //엘리베이터에 next_floor-1 층 이하로 가는 승객이 있는 경우
                         if (flag) {
                             elevator.direction = "DOWN"
@@ -257,7 +253,7 @@ fun zoning(elevator: Elevator, section: Int) {
             }
 
             //next_floor에서 아래로 가는 요청이 있는 경우
-            if (flag == true) {
+            if (flag) {
                 i = 0
                 var num = elevator.up_user_list.size + elevator.down_user_list.size
                 //정원초과 되기 전까지 next_floor에서 승객을 제거하여 down_user_list로 삽입한다.
@@ -281,8 +277,8 @@ fun zoning(elevator: Elevator, section: Int) {
             //next_floor에서 아래로 가는 요청이 없는 경우
             else {
                 flag = false
-                //0층에서 next_floor-1 사이에 요청이 있음
-                for (i: Int in 0..elevator.next_floor - 1)
+                //1층에서 next_floor-1 사이에 요청이 있음
+                for (i: Int in floorFloor until elevator.next_floor)
                     for (j in floor.user_list[i])
                         flag = true
                 //엘리베이터에 next_floor-1층 이하로 가는 승객이 있음
@@ -290,7 +286,7 @@ fun zoning(elevator: Elevator, section: Int) {
                     if (i.quit_floor < elevator.next_floor)
                         flag = true
 
-                //0층에서 next_floor-1층 사이에 요청이 있거나,
+                //1층에서 next_floor-1층 사이에 요청이 있거나,
                 //엘리베이터에 next_floor-1층 이하로 가는 승객이 있는 경우
                 if (flag) {
                     elevator.next_floor--
@@ -298,7 +294,7 @@ fun zoning(elevator: Elevator, section: Int) {
                     if (is_open)
                         elevator.arrive_time += OPEN_TIME + CLOSE_TIME
                 }
-                //0층에서 next_floor-1층 사이에 요청이 없고,
+                //1층에서 next_floor-1층 사이에 요청이 없고,
                 //엘리베이터에 next_floor-1층 이하로 가는 승객이 없는 경우
                 else {
                     flag = false
@@ -387,8 +383,9 @@ fun zoning(elevator: Elevator, section: Int) {
                     near_floor = y
                     break
                 }
-                x--
-                y++
+                if (x > FLOOR_FLOOR) x--
+                if (y < CEILING_FLOOR) y++
+                if (x == FLOOR_FLOOR && y == CEILING_FLOOR) break //더 이상 찾을 층이 없는 경우 계속 멈춰있음
             }
             //가까운 승객이 현재 엘리베이터가 있는 곳보다 높은 층인 경우
             if ((near_floor != -1) && (near_floor > elevator.next_floor)) {
@@ -405,13 +402,15 @@ fun zoning(elevator: Elevator, section: Int) {
                 elevator.arrive_time += MOVETIME
                 if (is_open)
                     elevator.arrive_time += OPEN_TIME + CLOSE_TIME
-            } else if (near_floor == elevator.next_floor) {
+            }
+            // 가까운 승객이 엘리베이터가 서 있는 층에 존재하는 경우
+            else if (near_floor == elevator.next_floor) {
                 var next_floor_list = floor.user_list[elevator.next_floor]
                 i = 0
                 var num = elevator.up_user_list.size + elevator.down_user_list.size
                 //정원초과 되기 전까지 next_floor에서 승객을 제거하여 down_user_list로 삽입한다.
                 while ((i < next_floor_list.size) && (num < MAXIMUM_NUMBER)) {
-                    if (next_floor_list[i].quit_floor < next_floor_list[i].ride_floor) {
+                    if (next_floor_list[i].quit_floor < next_floor_list[i].ride_floor) {    // 내려가는 사람 먼저 챙긴다.
                         var temp_create_time = floor.user_list[elevator.next_floor][i].create_time
                         var temp_ride_floor = floor.user_list[elevator.next_floor][i].ride_floor
                         var temp_quit_floor = floor.user_list[elevator.next_floor][i].quit_floor
@@ -430,7 +429,9 @@ fun zoning(elevator: Elevator, section: Int) {
                     elevator.direction = "DOWN"
                     elevator.next_floor--
                     elevator.arrive_time += OPEN_TIME + MOVETIME + CLOSE_TIME
-                } else if (elevator.down_user_list.size == 0) {
+                }
+                // 내려가려는 승객이 없으면 해당 층에서 올라가려는 승객을 태움
+                else if (elevator.down_user_list.size == 0) {
                     i = 0
                     var num = elevator.up_user_list.size + elevator.down_user_list.size
                     //정원초과 되기 전까지 next_floor에서 승객을 제거하여 up_user_list로 삽입한다.
@@ -456,9 +457,7 @@ fun zoning(elevator: Elevator, section: Int) {
                 } else {
                     println("stop error!")
                 }
-
             }
-
         } else {
             println("direction error!")
         }
