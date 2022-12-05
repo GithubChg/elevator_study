@@ -21,7 +21,7 @@ fun CCoperation(elevator: Elevator) {
 
     var is_open = false
     //엘리베이터가 next_floor에 도착한 경우
-    if (elevator.arrive_time <= now) {
+    if (elevator.arrive_time <= now) {  //도착시간 전에 아무것도 안한다.
         sum_distance++
         //도착한 승객들을 모두 내리고 성능평가지표를 수정한다.
         var i = 0
