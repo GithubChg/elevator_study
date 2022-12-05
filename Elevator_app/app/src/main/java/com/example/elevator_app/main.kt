@@ -41,7 +41,7 @@ class Elevator() {
 
 // 상수
 //ALGORITHM 변수 후보: COLLECTIVE_CONTROL, algorithm2,  ZONING
-val ALGORITHM = "COLLECTIVE_CONTROL" //사용하는 알고리즘
+val ALGORITHM = "ZONING" //사용하는 알고리즘
 val IS_SIMULATION = true //시뮬레이션 중인지, 실제 사용자가 사용하는 경우인지 구분
 val SIMULATION_DURATION = 604800 //시뮬레이션 지속 시간 604800초는 1주일 debug code
 val MAXIMUM_NUMBER = 24 // 엘리베이터 정원
@@ -156,7 +156,7 @@ fun main() {
             }
 
             println("")
-            print("엘리베이터 1 위치 ${elevator1.next_floor}층 : ")
+            print("엘리베이터 1 위치 ${elevator1.next_floor}층 (방향: ${elevator1.direction}): ")
             for (i in elevator1.up_user_list) {
                 if (i.userid != "default")
                     print("(${i.userid},${i.create_time},${i.ride_floor},${i.quit_floor})\t")
@@ -172,7 +172,7 @@ fun main() {
             }
             println("")
 
-            print("엘리베이터 2 위치 ${elevator2.next_floor}층 : ")
+            print("엘리베이터 2 위치 ${elevator2.next_floor}층 (방향: ${elevator2.direction}): ")
             for (i in elevator2.up_user_list) {
                 if (i.userid != "default")
                     print("(${i.userid},${i.create_time},${i.ride_floor},${i.quit_floor})\t")
