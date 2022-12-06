@@ -1,4 +1,5 @@
 import com.example.elevator_app.CCoperation
+import com.example.elevator_app.algorithm2
 import com.example.elevator_app.zoning
 import java.util.concurrent.ThreadLocalRandom
 
@@ -37,10 +38,14 @@ class Elevator() {
     var direction = "STOP" //엘리베이터의 현재 이동방향, "STOP", "UP", "DOWN" 가능
     var next_floor = 1 //엘리베이터가 지나갈 층, collective control에서는 현재층+1 또는 현재층-1
     var arrive_time = -1 //엘리베이터가 next_floor에 도착하는 시간
+
+    var priority_floor=0 //우선순위 층
+    var final_floor=0 //최종 목적지
+    var priority_direction=0//우선순위 층+방향(올라가면 우선순위 층 그대로, 내려가면 우선순위 층 +50)
 }
 
 // 상수
-//ALGORITHM 변수 후보: COLLECTIVE_CONTROL, algorithm2,  ZONING
+//ALGORITHM 변수 후보: COLLECTIVE_CONTROL, ALGORITHM2,  ZONING
 val ALGORITHM = "ZONING" //사용하는 알고리즘
 val IS_SIMULATION = true //시뮬레이션 중인지, 실제 사용자가 사용하는 경우인지 구분
 val SIMULATION_DURATION = 604800 //시뮬레이션 지속 시간 604800초는 1주일 debug code
@@ -198,9 +203,11 @@ fun main() {
             CCoperation(elevator2)
         } else if (ALGORITHM == "ALGORITHM2") {
             // 엘리베이터 1 동작
-            algorithm2(elevator1)
+            algorithm2(elevator2.priority_direction,elevator1)
+            //algorithm2(elevator1)
             // 엘리베이터 2 동작
-            algorithm2(elevator2)
+            algorithm2(elevator1.priority_direction,elevator2)
+            //algorithm2(elevator2)
         } else if (ALGORITHM == "ZONING") { // Zoning Algorithm
             // 엘리베이터 1 동작
             zoning(elevator1, 1)    // 1층부터 (최상층 / 2) 층
