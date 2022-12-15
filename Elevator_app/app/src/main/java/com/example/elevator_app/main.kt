@@ -49,7 +49,7 @@ class Elevator() {
 
 // 상수
 //ALGORITHM 변수 후보: COLLECTIVE_CONTROL, ALGORITHM2, ZONING, ALGORITHM4
-val ALGORITHM = "ZONING" //사용하는 알고리즘
+val ALGORITHM = "COLLECTIVE_CONTROL" //사용하는 알고리즘
 val IS_SIMULATION = false //시뮬레이션 중인지, 실제 사용자가 사용하는 경우인지 구분
 val SIMULATION_DURATION = 604800 //시뮬레이션 지속 시간 604800초는 1주일 debug code
 val MAXIMUM_NUMBER = 24 // 엘리베이터 정원
@@ -80,137 +80,41 @@ var floor = Floor(FLOOR_FLOOR, CEILING_FLOOR)
 //실제 유저의 입력을 받고 생성한다.
 class real_user_create : Thread() {
     public override fun run() {
+        var ele1EstimateTimeOfArrival: Int = 0
+        var ele2EstimateTimeOfArrival: Int = 0
+
         while (!Thread.interrupted()) {
             var real_user_input = readLine()!!
             var arr = real_user_input.split(" ")
             var real_user = User(now.toInt(), arr[1].toInt(), arr[2].toInt())
             real_user.userid = arr[0]
 
-            // ZONING 알고리즘일 때 도착 예정시간 계산
-            //FIXME: 현재 대기 시간이 지나치게 작게 나옴. 뺄셈에서 문제 있는 듯??
+            // 탑승 예정 시간과 추천 엘리베이터 구하기
             if (ALGORITHM == "ZONING") {
-                var ele1EstimateTimeOfArrival: Int = 0
-                var ele2EstimateTimeOfArrival: Int = 0
-                var userDirection: String = ""
-                // 사용자가 탑승하는 층수에 따라 추천 엘리베이터를 결정
-                if (real_user.ride_floor >= FLOOR_FLOOR && real_user.ride_floor <= CEILING_FLOOR / 2)
-                    recommededElevator = "ELEVATOR1"
-                else if (real_user.ride_floor >= CEILING_FLOOR / 2 && real_user.ride_floor <= CEILING_FLOOR)
-                    recommededElevator = "ELEVATOR2"
-
-                // 사용자가 이동하는 방향을 확인
-                userDirection = if (real_user.quit_floor > real_user.ride_floor) "UP"
-                else "DOWN"
-
-                // 25층 이하에서 타는 경우
-                if (real_user.ride_floor <= CEILING_FLOOR / 2) {
-                    //25층에서 탔는데, 25층 이상으로 가는 경우 -> 해당 분기에서 탈출
-                    if (real_user.ride_floor == CEILING_FLOOR && real_user.quit_floor > CEILING_FLOOR / 2) break
-
-                    // 내리는 층을 보고 환승하는지 확인
-                    if (real_user.quit_floor > CEILING_FLOOR / 2) real_user.isTransfer = true
-                    // 사용자와 엘리베이터가 같은 방향
-                    if (userDirection == elevator1.direction) {
-                        //엘리베이터가 사용자를 안지나침
-                        // 도착 예정시간 = only 사용자에게 도달하는 시간
-                        if (isCrossed(
-                                elevator1,
-                                real_user.ride_floor,
-                                real_user.quit_floor
-                            )
-                        ) {
-                            ele1EstimateTimeOfArrival =
-                                abs(elevator1.next_floor - real_user.ride_floor)
-                        }
-                        // 지나침
-                        // 도착 예정시간 = 현재 엘리베이터 방향에서 끝 층까지 이동하는 데 걸리는 시간 + 끝 층에서 끝 층으로 이동하는 데 걸리는 시간 + 사용자에게 도달하는 시간
-                        else {
-                            if (elevator1.direction == "UP") {
-                                ele1EstimateTimeOfArrival =
-                                    (CEILING_FLOOR / 2 - elevator1.next_floor) + (CEILING_FLOOR / 2 - FLOOR_FLOOR) + (real_user.ride_floor - FLOOR_FLOOR)
-                            } else if (elevator1.direction == "DOWN") {
-                                ele1EstimateTimeOfArrival =
-                                    (elevator1.next_floor - FLOOR_FLOOR) + (CEILING_FLOOR / 2 - FLOOR_FLOOR) + (CEILING_FLOOR / 2 - real_user.ride_floor)
-                            }
-                        }
-                    }
-                    //사용자와 엘리베이터가 다른 방향
-                    // 도착 예정시간 = 현재 엘리베이터 방향에서 끝 층까지 이동하는 데 걸리는 시간 + 사용자에게 도달하는 시간
-                    else {
-                        if (elevator1.direction == "UP") {
-                            ele1EstimateTimeOfArrival =
-                                (CEILING_FLOOR / 2 - elevator1.next_floor) + (CEILING_FLOOR / 2 - real_user.ride_floor)
-                        } else if (elevator1.direction == "DOWN") {
-                            ele1EstimateTimeOfArrival =
-                                (elevator1.next_floor - FLOOR_FLOOR) + (real_user.ride_floor - FLOOR_FLOOR)
-                        }
-                    }
-                    // 사용자가 환승하는 경우, 다른 구역 엘리베이터가 현재 층에서 환승 층까지가는데 걸리는 시간을 더해줌
-                    if (real_user.isTransfer) {
-                        ele1EstimateTimeOfArrival += elevator2.next_floor - CEILING_FLOOR / 2
-                    }
-                }
-                //25층 이상에서 타는 경우
-                if (real_user.ride_floor >= CEILING_FLOOR / 2) {
-                    //25층에서 탔는데, 25층 이하로 가는 경우 -> 해당 분기에서 탈출
-                    if (real_user.ride_floor == CEILING_FLOOR && real_user.quit_floor < CEILING_FLOOR / 2) break
-
-                    // 내리는 층을 보고 환승하는지 확인
-                    if (real_user.quit_floor < CEILING_FLOOR / 2) real_user.isTransfer = true
-                    // 사용자와 엘리베이터가 같은 방향
-                    if (userDirection == elevator2.direction) {
-                        //엘리베이터가 사용자를 안지나침
-                        // 도착 예정시간 = only 사용자에게 도달하는 시간
-                        if (isCrossed(
-                                elevator2,
-                                real_user.ride_floor,
-                                real_user.quit_floor
-                            )
-                        ) {
-                            ele2EstimateTimeOfArrival =
-                                abs(elevator2.next_floor - real_user.ride_floor)
-                        }
-                        // 지나침
-                        // 도착 예정시간 = 현재 엘리베이터 방향에서 끝 층까지 이동하는 데 걸리는 시간 + 끝 층에서 끝 층으로 이동하는 데 걸리는 시간 + 사용자에게 도달하는 시간
-                        else {
-                            if (elevator2.direction == "UP") {
-                                ele2EstimateTimeOfArrival =
-                                    (CEILING_FLOOR - elevator2.next_floor) + (CEILING_FLOOR - CEILING_FLOOR / 2) + (real_user.ride_floor - CEILING_FLOOR / 2)
-                            } else if (elevator2.direction == "DOWN") {
-                                ele2EstimateTimeOfArrival =
-                                    (elevator2.next_floor - CEILING_FLOOR / 2) + (CEILING_FLOOR - CEILING_FLOOR / 2) + (CEILING_FLOOR - real_user.ride_floor)
-                            }
-                        }
-                    }
-                    //사용자와 엘리베이터가 다른 방향
-                    // 도착 예정시간 = 현재 엘리베이터 방향에서 끝 층까지 이동하는 데 걸리는 시간 + 사용자에게 도달하는 시간
-                    else {
-                        if (elevator2.direction == "UP") {
-                            ele2EstimateTimeOfArrival =
-                                (CEILING_FLOOR - elevator2.next_floor) + (CEILING_FLOOR - real_user.ride_floor)
-                        } else if (elevator2.direction == "DOWN") {
-                            ele2EstimateTimeOfArrival =
-                                (elevator2.next_floor - CEILING_FLOOR / 2) + (real_user.ride_floor - CEILING_FLOOR / 2)
-                        }
-                    }
-                    // 사용자가 환승하는 경우, 다른 구역 엘리베이터가 현재 층에서 환승 층까지가는데 걸리는 시간을 더해줌
-                    if (real_user.isTransfer) {
-                        ele2EstimateTimeOfArrival += CEILING_FLOOR / 2 - elevator1.next_floor
-                    }
-                }
-                if (real_user.ride_floor >= FLOOR_FLOOR && real_user.ride_floor <= CEILING_FLOOR / 2)
-                    estimatedTimeOfArrival = ele1EstimateTimeOfArrival
-                else if (real_user.ride_floor >= CEILING_FLOOR / 2 && real_user.ride_floor <= CEILING_FLOOR)
-                    estimatedTimeOfArrival = ele2EstimateTimeOfArrival
-
+                calEstimateedTimeOfArrivalInZoning(real_user)
             }
+            else if (ALGORITHM != "ALGORITHM2"){
+                ele1EstimateTimeOfArrival = calEstimateedTimeOfArrival(elevator1, real_user)
+                ele2EstimateTimeOfArrival = calEstimateedTimeOfArrival(elevator2, real_user)
+
+                if (ele1EstimateTimeOfArrival > ele2EstimateTimeOfArrival) {
+                    estimatedTimeOfArrival = ele2EstimateTimeOfArrival
+                    recommededElevator = "ELEVATOR2"
+                } else {
+                    estimatedTimeOfArrival = ele1EstimateTimeOfArrival
+                    recommededElevator = "ELEVATOR1"
+                }
+            }
+
 
             println("userid : " + real_user.userid)
             println("생성 시간 : " + real_user.create_time)
             println("출발 층 : " + (real_user.ride_floor)) // 입력 범위: 1 ~ 50
             println("도착 층 : " + (real_user.quit_floor)) // 입력 범위: 1 ~ 50
-            println("탑승까지 남은 시간 : $estimatedTimeOfArrival")
-            println("추전 엘리베이터 : $recommededElevator")
+            if (ALGORITHM != "ALGORITHM2") {
+                println("탑승까지 남은 시간 : $estimatedTimeOfArrival")
+                println("추천 엘리베이터 : $recommededElevator")
+            }
             floor.user_list[real_user.ride_floor].add(real_user)
         }
     }
@@ -270,6 +174,175 @@ fun isCrossed(elevator: Elevator, userRide: Int, userQuit: Int): Boolean {
         return userRide < elevator.next_floor
     }
     return exitProcess(1000)
+
+}
+
+fun calEstimateedTimeOfArrival(elevator: Elevator, real_user: User): Int {
+    var userDirection: String = ""
+    var arriveTime: Int = 0
+
+    // 사용자가 이동하는 방향을 확인
+    userDirection = if (real_user.quit_floor > real_user.ride_floor) "UP"
+    else "DOWN"
+
+    // 사용자와 엘리베이터가 같은 방향
+    if (userDirection == elevator.direction) {
+        //엘리베이터가 사용자를 안지나침
+        // 도착 예정시간 = only 사용자에게 도달하는 시간
+        if (isCrossed(
+                elevator,
+                real_user.ride_floor,
+                real_user.quit_floor
+            )
+        ) {
+            arriveTime =
+                abs(elevator.next_floor - real_user.ride_floor)
+        }
+        // 지나침
+        // 도착 예정시간 = 현재 엘리베이터 방향에서 끝 층까지 이동하는 데 걸리는 시간 + 끝 층에서 끝 층으로 이동하는 데 걸리는 시간 + 사용자에게 도달하는 시간
+        else {
+            if (elevator.direction == "UP") {
+                arriveTime =
+                    (CEILING_FLOOR - elevator.next_floor) + (CEILING_FLOOR - FLOOR_FLOOR) + (real_user.ride_floor - FLOOR_FLOOR)
+            } else if (elevator.direction == "DOWN") {
+                arriveTime =
+                    (elevator.next_floor - FLOOR_FLOOR) + (CEILING_FLOOR - FLOOR_FLOOR) + (CEILING_FLOOR - real_user.ride_floor)
+            }
+        }
+    }
+    //사용자와 엘리베이터가 다른 방향
+    // 도착 예정시간 = 현재 엘리베이터 방향에서 끝 층까지 이동하는 데 걸리는 시간 + 사용자에게 도달하는 시간
+    else {
+        if (elevator.direction == "UP") {
+            arriveTime =
+                (CEILING_FLOOR - elevator.next_floor) + (CEILING_FLOOR - real_user.ride_floor)
+        } else if (elevator.direction == "DOWN") {
+            arriveTime =
+                (elevator.next_floor - FLOOR_FLOOR) + (real_user.ride_floor - FLOOR_FLOOR)
+        }
+    }
+    return arriveTime
+}
+
+fun calEstimateedTimeOfArrivalInZoning(real_user: User) {
+    var ele1EstimateTimeOfArrival: Int = 0
+    var ele2EstimateTimeOfArrival: Int = 0
+    var userDirection: String = ""
+
+    // 사용자가 탑승하는 층수에 따라 추천 엘리베이터를 결정
+    if (real_user.ride_floor >= FLOOR_FLOOR && real_user.ride_floor <= CEILING_FLOOR / 2)
+        recommededElevator = "ELEVATOR1"
+    else if (real_user.ride_floor >= CEILING_FLOOR / 2 && real_user.ride_floor <= CEILING_FLOOR)
+        recommededElevator = "ELEVATOR2"
+
+    // 사용자가 이동하는 방향을 확인
+    userDirection = if (real_user.quit_floor > real_user.ride_floor) "UP"
+    else "DOWN"
+
+    // 25층 미만에서 타는 경우
+    if (real_user.ride_floor < CEILING_FLOOR / 2) {
+        // 내리는 층을 보고 환승하는지 확인
+        if (real_user.quit_floor > CEILING_FLOOR / 2) real_user.isTransfer = true
+        // 사용자와 엘리베이터가 같은 방향
+        if (userDirection == elevator1.direction) {
+            //엘리베이터가 사용자를 안지나침
+            // 도착 예정시간 = only 사용자에게 도달하는 시간
+            if (isCrossed(
+                    elevator1,
+                    real_user.ride_floor,
+                    real_user.quit_floor
+                )
+            ) {
+                ele1EstimateTimeOfArrival =
+                    abs(elevator1.next_floor - real_user.ride_floor)
+            }
+            // 지나침
+            // 도착 예정시간 = 현재 엘리베이터 방향에서 끝 층까지 이동하는 데 걸리는 시간 + 끝 층에서 끝 층으로 이동하는 데 걸리는 시간 + 사용자에게 도달하는 시간
+            else {
+                if (elevator1.direction == "UP") {
+                    ele1EstimateTimeOfArrival =
+                        (CEILING_FLOOR / 2 - elevator1.next_floor) + (CEILING_FLOOR / 2 - FLOOR_FLOOR) + (real_user.ride_floor - FLOOR_FLOOR)
+                } else if (elevator1.direction == "DOWN") {
+                    ele1EstimateTimeOfArrival =
+                        (elevator1.next_floor - FLOOR_FLOOR) + (CEILING_FLOOR / 2 - FLOOR_FLOOR) + (CEILING_FLOOR / 2 - real_user.ride_floor)
+                }
+            }
+        }
+        //사용자와 엘리베이터가 다른 방향
+        // 도착 예정시간 = 현재 엘리베이터 방향에서 끝 층까지 이동하는 데 걸리는 시간 + 사용자에게 도달하는 시간
+        else {
+            if (elevator1.direction == "UP") {
+                ele1EstimateTimeOfArrival =
+                    (CEILING_FLOOR / 2 - elevator1.next_floor) + (CEILING_FLOOR / 2 - real_user.ride_floor)
+            } else if (elevator1.direction == "DOWN") {
+                ele1EstimateTimeOfArrival =
+                    (elevator1.next_floor - FLOOR_FLOOR) + (real_user.ride_floor - FLOOR_FLOOR)
+            }
+        }
+        // 사용자가 환승하는 경우, 다른 구역 엘리베이터가 현재 층에서 환승 층까지가는데 걸리는 시간을 더해줌
+        if (real_user.isTransfer) {
+            ele1EstimateTimeOfArrival += elevator2.next_floor - CEILING_FLOOR / 2
+        }
+    }
+    //25층 초과에서 타는 경우
+    else if (real_user.ride_floor > CEILING_FLOOR / 2) {
+        // 내리는 층을 보고 환승하는지 확인
+        if (real_user.quit_floor < CEILING_FLOOR / 2) real_user.isTransfer = true
+        // 사용자와 엘리베이터가 같은 방향
+        if (userDirection == elevator2.direction) {
+            //엘리베이터가 사용자를 안지나침
+            // 도착 예정시간 = only 사용자에게 도달하는 시간
+            if (isCrossed(
+                    elevator2,
+                    real_user.ride_floor,
+                    real_user.quit_floor
+                )
+            ) {
+                ele2EstimateTimeOfArrival =
+                    abs(elevator2.next_floor - real_user.ride_floor)
+            }
+            // 지나침
+            // 도착 예정시간 = 현재 엘리베이터 방향에서 끝 층까지 이동하는 데 걸리는 시간 + 끝 층에서 끝 층으로 이동하는 데 걸리는 시간 + 사용자에게 도달하는 시간
+            else {
+                if (elevator2.direction == "UP") {
+                    ele2EstimateTimeOfArrival =
+                        (CEILING_FLOOR - elevator2.next_floor) + (CEILING_FLOOR - CEILING_FLOOR / 2) + (real_user.ride_floor - CEILING_FLOOR / 2)
+                } else if (elevator2.direction == "DOWN") {
+                    ele2EstimateTimeOfArrival =
+                        (elevator2.next_floor - CEILING_FLOOR / 2) + (CEILING_FLOOR - CEILING_FLOOR / 2) + (CEILING_FLOOR - real_user.ride_floor)
+                }
+            }
+        }
+        //사용자와 엘리베이터가 다른 방향
+        // 도착 예정시간 = 현재 엘리베이터 방향에서 끝 층까지 이동하는 데 걸리는 시간 + 사용자에게 도달하는 시간
+        else {
+            if (elevator2.direction == "UP") {
+                ele2EstimateTimeOfArrival =
+                    (CEILING_FLOOR - elevator2.next_floor) + (CEILING_FLOOR - real_user.ride_floor)
+            } else if (elevator2.direction == "DOWN") {
+                ele2EstimateTimeOfArrival =
+                    (elevator2.next_floor - CEILING_FLOOR / 2) + (real_user.ride_floor - CEILING_FLOOR / 2)
+            }
+        }
+        // 사용자가 환승하는 경우, 다른 구역 엘리베이터가 현재 층에서 환승 층까지가는데 걸리는 시간을 더해줌
+        if (real_user.isTransfer) {
+            ele2EstimateTimeOfArrival += CEILING_FLOOR / 2 - elevator1.next_floor
+        }
+    }
+    // 25층에서 타는 경우
+    else if (real_user.ride_floor == CEILING_FLOOR / 2) {
+        if (real_user.quit_floor < CEILING_FLOOR / 2) {
+            ele1EstimateTimeOfArrival = real_user.ride_floor - elevator1.next_floor
+        } else if (real_user.quit_floor > CEILING_FLOOR / 2) {
+            ele2EstimateTimeOfArrival = elevator2.next_floor - real_user.ride_floor
+        }
+    }
+
+    if (real_user.ride_floor >= FLOOR_FLOOR && real_user.ride_floor <= CEILING_FLOOR / 2) {
+        estimatedTimeOfArrival = ele1EstimateTimeOfArrival
+    } else if (real_user.ride_floor >= CEILING_FLOOR / 2 && real_user.ride_floor <= CEILING_FLOOR) {
+        estimatedTimeOfArrival = ele2EstimateTimeOfArrival
+    }
 
 }
 
